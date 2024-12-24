@@ -30,17 +30,17 @@ cat ../testcases/06d-input.txt | ./lab6 | diff ../testcases/06d-output.txt -
 
 cat ../testcases/07a-input.txt | ./lab6 | diff ../testcases/07a-output.txt -
 cat ../testcases/07b-input.txt | ./lab6 | diff ../testcases/07b-output.txt -
-# cat ../testcases/07c-input.txt | ./lab6 | diff ../testcases/07c-output.txt -
-# cat ../testcases/07d-input.txt | ./lab6 | diff ../testcases/07d-output.txt -
+cat ../testcases/07c-input.txt | ./lab6 | diff ../testcases/07c-output.txt -
+cat ../testcases/07d-input.txt | ./lab6 | diff ../testcases/07d-output.txt -
 
 cat ../testcases/08a-input.txt | ./lab6 | diff ../testcases/08a-output.txt -
 cat ../testcases/08b-input.txt | ./lab6 | diff ../testcases/08b-output.txt -
 
-# cat ../testcases/09a-input.txt | ./lab6 | diff ../testcases/09a-output.txt -
-# cat ../testcases/09b-input.txt | ./lab6 | diff ../testcases/09b-output.txt -
+cat ../testcases/09a-input.txt | ./lab6 | diff ../testcases/09a-output.txt -
+cat ../testcases/09b-input.txt | ./lab6 | diff ../testcases/09b-output.txt -
 
-# cat ../testcases/10a-input.txt | ./lab6 | diff ../testcases/10a-output.txt -
-# cat ../testcases/10b-input.txt | ./lab6 | diff ../testcases/10b-output.txt -
+cat ../testcases/10a-input.txt | ./lab6 | diff ../testcases/10a-output.txt -
+cat ../testcases/10b-input.txt | ./lab6 | diff ../testcases/10b-output.txt -
 
 # cat ../testcases/11a-input.txt | ./lab6 | diff ../testcases/11a-output.txt -
 

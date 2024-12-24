@@ -5,6 +5,7 @@
 #define MAXSIZE 100
 #define MAX_QUEUE_PROCESSES 20
 #define MAXQUEUES 10
+#define MAXPOLICIES 10
 
 typedef struct
 {
@@ -53,6 +54,11 @@ void initProgress(Process *processes, int lastInstant, int numProcess)
 {
     for (int i = 0; i < numProcess; i++)
     {
+        processes[i].start = 0;
+        processes[i].finish = 0;
+        processes[i].executed = 0;
+        processes[i].remaining = processes[i].service;
+        processes[i].enteredQueue = 0;
         for (int j = 0; j <= lastInstant; j++)
             processes[i].progress[j] = ' ';
     }
@@ -508,38 +514,46 @@ void FB2i(Process *processes, int numProcess, int lastInstant)
 
 //     }
 // }
-void callFunctions(int policy, Process *processes, int numProcess, int lastInstant, int isTrace, int quantum)
+void callFunctions(int policies[MAXPOLICIES][2], int numPolicies, Process *processes, int numProcess, int lastInstant, int isTrace)
 {
-    switch (policy)
+    for (int i = 0; i < numPolicies; i++)
     {
-    case 1:
-        FCFS(processes, numProcess);
-        break;
-    case 2:
-        roundRobin(processes, numProcess, lastInstant, quantum);
-        break;
-    case 3:
-        SPN(processes, numProcess);
-        break;
-    case 4:
-        SRT(processes, numProcess);
-        break;
-    case 5:
-        HRRN(processes, numProcess);
-        break;
-    case 6:
-        FB1(processes, numProcess, lastInstant);
-        break;
-    case 7:
-        FB2i(processes, numProcess, lastInstant);
-        break;
-    default:
-        break;
+        initProgress(processes, lastInstant, numProcess);
+
+        int policy = policies[i][0];
+        int quantum = policies[i][1];
+
+        switch (policy)
+        {
+        case 1:
+            FCFS(processes, numProcess);
+            break;
+        case 2:
+            roundRobin(processes, numProcess, lastInstant, quantum);
+            break;
+        case 3:
+            SPN(processes, numProcess);
+            break;
+        case 4:
+            SRT(processes, numProcess);
+            break;
+        case 5:
+            HRRN(processes, numProcess);
+            break;
+        case 6:
+            FB1(processes, numProcess, lastInstant);
+            break;
+        case 7:
+            FB2i(processes, numProcess, lastInstant);
+            break;
+        default:
+            break;
+        }
+        if (isTrace == 1)
+            printTrace(policy, processes, numProcess, lastInstant, isTrace, quantum);
+        else
+            printStats(policy, processes, isTrace, numProcess, quantum);
     }
-    if (isTrace == 1)
-        printTrace(policy, processes, numProcess, lastInstant, isTrace, quantum);
-    else
-        printStats(policy, processes, isTrace, numProcess, quantum);
 }
 
 int main(int argc, char *argv[])
@@ -557,10 +571,13 @@ int main(int argc, char *argv[])
 
     int line = 1;
     int isTrace;
-    int policy;
     int lastInstant;
     int numProcess;
-    int quantum;
+
+    char strPolicies[MAXPOLICIES][8];
+    int policies[MAXPOLICIES][2];
+    int numPolicies = 0;
+
     Process *processes;
 
     while (fgets(str, 50, input) != NULL)
@@ -569,15 +586,27 @@ int main(int argc, char *argv[])
             isTrace = strcmp(str, "trace\n") == 0 ? 1 : 0;
         if (line == 2)
         {
-            char *token = strtok(str, "-");
-            policy = atoi(token);
-
-            token = strtok(NULL, "-");
-            if (policy == 2 || policy == 8 && token != NULL)
+            char *token = strtok(str, ",");
+            while (token != NULL)
             {
-                quantum = atoi(token);
+                strcpy(strPolicies[numPolicies], token);
+                numPolicies++;
+                token = strtok(NULL, ",");
+            }
+
+            for (int i = 0; i < numPolicies; i++)
+            {
+                char *t = strtok(strPolicies[i], "-");
+                int policy = atoi(t);
+                policies[i][0] = policy;
+                if ((policy == 2 || policy == 8))
+                {
+                    t = strtok(NULL, "-");
+                    policies[i][1] = atoi(t);
+                }
             }
         }
+
         if (line == 3)
             lastInstant = atoi(str);
         if (line == 4)
@@ -605,8 +634,8 @@ int main(int argc, char *argv[])
 
         line++;
     }
-    initProgress(processes, lastInstant, numProcess);
-    callFunctions(policy, processes, numProcess, lastInstant, isTrace, quantum);
+
+    callFunctions(policies, numPolicies, processes, numProcess, lastInstant, isTrace);
     // printf("%d\n", isTrace);
     // printf("%d\n", policy);
     // printf("%d\n", quantum);
