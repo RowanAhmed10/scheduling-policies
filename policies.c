@@ -11,12 +11,16 @@ typedef struct
 {
     char name;
     int arrival;
-    int service;
+    int serviceOrPriority;
     int start;
     int finish;
     int executed;
     int remaining;
     int enteredQueue;
+
+    // for aging
+    int waiting;
+    int priority;
     char progress[MAXSIZE];
 } Process;
 
@@ -57,7 +61,8 @@ void initProgress(Process *processes, int lastInstant, int numProcess)
         processes[i].start = 0;
         processes[i].finish = 0;
         processes[i].executed = 0;
-        processes[i].remaining = processes[i].service;
+        processes[i].remaining = processes[i].priority = processes[i].serviceOrPriority;
+        processes[i].waiting = 0;
         processes[i].enteredQueue = 0;
         for (int j = 0; j <= lastInstant; j++)
             processes[i].progress[j] = ' ';
@@ -125,7 +130,7 @@ void printStats(int policy, Process *processes, int isTrace, int numProcess, int
     printf("Service    |");
     for (int i = 0; i < numProcess; i++)
     {
-        printf(" %2d  |", processes[i].service);
+        printf(" %2d  |", processes[i].serviceOrPriority);
     }
     printf(" Mean|\n");
 
@@ -148,7 +153,7 @@ void printStats(int policy, Process *processes, int isTrace, int numProcess, int
     printf("NormTurn   |");
     for (int i = 0; i < numProcess; i++)
     {
-        float normTurn = (processes[i].finish - processes[i].arrival) * 1.0 / processes[i].service;
+        float normTurn = (processes[i].finish - processes[i].arrival) * 1.0 / processes[i].serviceOrPriority;
         printf(" %.2f|", normTurn);
         sumNormTurn += normTurn;
     }
@@ -228,7 +233,7 @@ void FCFS(Process *processes, int numProcess)
 
         // Process the minIndex process
         processes[minIndex].start = second;
-        second += processes[minIndex].service;
+        second += processes[minIndex].serviceOrPriority;
         processes[minIndex].executed = 1;
         processes[minIndex].finish = second;
 
@@ -254,7 +259,7 @@ void roundRobin(Process *processes, int numProcess, int lastInstant, int quantum
 
     Process *unfinished = NULL;
 
-    while (second <= lastInstant)
+    while (second < lastInstant)
     {
         for (int i = 0; i < numProcess; i++)
         {
@@ -273,7 +278,7 @@ void roundRobin(Process *processes, int numProcess, int lastInstant, int quantum
         {
             Process *process = dequeue(&queue);
             int execTime = process->remaining < quantum ? process->remaining : quantum;
-            if (process->remaining == process->service)
+            if (process->remaining == process->serviceOrPriority)
             {
                 process->start = second;
             }
@@ -312,9 +317,9 @@ void SPN(Process *processes, int numProcess)
 
         for (int i = 0; i < numProcess; i++)
         {
-            if (processes[i].arrival <= second && processes[i].executed == 0 && processes[i].service < minService)
+            if (processes[i].arrival <= second && processes[i].executed == 0 && processes[i].serviceOrPriority < minService)
             {
-                minService = processes[i].service;
+                minService = processes[i].serviceOrPriority;
                 minIndex = i;
             }
         }
@@ -327,7 +332,7 @@ void SPN(Process *processes, int numProcess)
 
         // Process the minIndex process
         processes[minIndex].start = second;
-        second += processes[minIndex].service;
+        second += processes[minIndex].serviceOrPriority;
         processes[minIndex].executed = 1;
         processes[minIndex].finish = second;
 
@@ -360,7 +365,7 @@ void SRT(Process *processes, int numProcess)
             continue;
         }
 
-        if (processes[minIndex].service == processes[minIndex].remaining)
+        if (processes[minIndex].serviceOrPriority == processes[minIndex].remaining)
             processes[minIndex].start = second;
 
         processes[minIndex].progress[second] = '*';
@@ -389,7 +394,7 @@ void HRRN(Process *processes, int numProcess)
             if (processes[i].arrival <= second && processes[i].executed == 0)
             {
                 int waiting = second - processes[i].arrival;
-                float responseRatio = (waiting + processes[i].service) * 1.0 / processes[i].service;
+                float responseRatio = (waiting + processes[i].serviceOrPriority) * 1.0 / processes[i].serviceOrPriority;
 
                 if (responseRatio > maxRatio)
                 {
@@ -407,7 +412,7 @@ void HRRN(Process *processes, int numProcess)
 
         // Process the maxIndex process
         processes[maxIndex].start = second;
-        second += processes[maxIndex].service;
+        second += processes[maxIndex].serviceOrPriority;
         processes[maxIndex].executed = 1;
         processes[maxIndex].finish = second;
 
@@ -429,7 +434,7 @@ void FB(Process *processes, int numProcess, int lastInstant, int constantQuantum
 
     int arrivedProcesses = 0;
     int second = 0;
-    while (second <= lastInstant)
+    while (second < lastInstant)
     {
         for (int i = 0; i < numProcess; i++)
         {
@@ -448,7 +453,7 @@ void FB(Process *processes, int numProcess, int lastInstant, int constantQuantum
             {
                 Process *p = dequeue(&queues[i]);
                 processed = 1;
-                if (p->remaining == p->service)
+                if (p->remaining == p->serviceOrPriority)
                 {
                     p->start = second;
                 }
@@ -506,14 +511,57 @@ void FB2i(Process *processes, int numProcess, int lastInstant)
     FB(processes, numProcess, lastInstant, 0);
 }
 
-// void Aging(Process *processes, int numProcess, int lastInstant)
-// {
-//     int second = 0;
-//     while (second < lastInstant)
-//     {
+void Aging(Process *processes, int numProcess, int lastInstant, int quantum)
+{
+    int second = 0;
+    while (second < lastInstant)
+    {
+        int maxIndex = -1;
+        int maxPriority = -1;
+        int maxWaiting = -1;
+        for (int i = 0; i < numProcess; i++)
+        {
+            if (processes[i].arrival <= second && (processes[i].priority > maxPriority || (processes[i].priority == maxPriority && processes[i].waiting > maxWaiting)))
+            {
+                maxPriority = processes[i].priority;
+                maxWaiting = processes[i].waiting;
+                maxIndex = i;
+            }
+        }
+        if (maxIndex == -1)
+        {
+            second++;
+            continue;
+        }
+        processes[maxIndex].priority = processes[maxIndex].serviceOrPriority;
+        processes[maxIndex].waiting = 0;
+        if (processes[maxIndex].executed == 0)
+        {
+            processes[maxIndex].start = second;
+            processes[maxIndex].executed = 1;
+        }
+        for (int i = 0; i < quantum; i++)
+        {
+            processes[maxIndex].progress[second] = '*';
+            second++;
+            if (second >= lastInstant)
+                break;
+        }
 
-//     }
-// }
+        for (int i = 0; i < numProcess; i++)
+        {
+            if (processes[i].arrival <= second && i != maxIndex)
+            {
+                processes[i].priority++;
+                processes[i].waiting++;
+            }
+        }
+    }
+    for (int i = 0; i < numProcess; i++)
+    {
+        processes[i].finish = lastInstant;
+    }
+}
 void callFunctions(int policies[MAXPOLICIES][2], int numPolicies, Process *processes, int numProcess, int lastInstant, int isTrace)
 {
     for (int i = 0; i < numPolicies; i++)
@@ -545,6 +593,9 @@ void callFunctions(int policies[MAXPOLICIES][2], int numPolicies, Process *proce
             break;
         case 7:
             FB2i(processes, numProcess, lastInstant);
+            break;
+        case 8:
+            Aging(processes, numProcess, lastInstant, quantum);
             break;
         default:
             break;
@@ -621,15 +672,8 @@ int main(int argc, char *argv[])
             token = strtok(NULL, ",");
             processes[line - 5].arrival = atoi(token);
             token = strtok(NULL, ",");
-            // if (policy == 8)
-            // {
-            //     processes[line - 5].priority = atoi(token);
-            // }
-            // else
-            // {
-            processes[line - 5].service = atoi(token);
+            processes[line - 5].serviceOrPriority = atoi(token);
             processes[line - 5].remaining = atoi(token);
-            // }
         }
 
         line++;

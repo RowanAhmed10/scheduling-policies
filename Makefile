@@ -1,5 +1,5 @@
-lab6: lab6.c
-	gcc lab6.c -o lab6
+policies: policies.c
+	gcc policies.c -o policies
 
-clean: 
-	rm -f lab6
+clean:
+	rm -f policies
